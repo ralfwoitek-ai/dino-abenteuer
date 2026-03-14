@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🦕 Dino-Abenteuer</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --jungle:#1a472a;--leaf:#2d6a4f;--lime:#74c69d;
+  --sun:#f4a261;--amber:#e76f51;--cream:#fefae0;
+  --stone:#dda15e;--sky:#90e0ef;--lava:#ff4500;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Nunito',sans-serif;background:#0d2b1a;min-height:100vh;overflow-x:hidden;}
+
+
+
+/* ── AUDIO BUTTON ── */
+#audio-btn {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 200;
+  background: rgba(45,106,79,0.85);
+  border: 2px solid var(--lime);
+  border-radius: 50%;
+  width: 42px; height: 42px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  transition: all 0.2s;
+  backdrop-filter: blur(4px);
+}
+#audio-btn:hover { transform: scale(1.1); background: rgba(116,198,157,0.3); }
+
+/* ── STORY BACKGROUND ── */
+#bg-story {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.5s ease;
+  overflow: hidden;
+}
+#bg-story.visible { opacity: 1; }
+#bg-story svg {
+  width: 100%; height: 100%;
+  position: absolute; top: 0; left: 0;
+}
+
+/* ── SCENE ── */
+#scene-canvas{ position:relative; z-index:1;
+  width:100%;height:220px;position:relative;overflow:hidden;
+  border-bottom:4px solid rgba(116,198,157,0.3);
+  background:linear-gradient(180deg,#1a3a5c 0%,#2d6a4f 60%,#1a472a 100%);
+  transition:background 1.2s ease;
+}
+.sky-layer{position:absolute;top:0;left:0;right:0;bottom:0;}
+.ground{position:absolute;bottom:0;left:0;right:0;height:55px;background:linear-gradient(180deg,#2d5a27,#1a3d15);border-top:3px solid #4a8c3f;}
+.ground::before{content:'';position:absolute;top:-8px;left:0;right:0;height:12px;background:repeating-linear-gradient(90deg,#3d7a32 0,#3d7a32 20px,#4a8c3f 20px,#4a8c3f 40px);opacity:0.6;}
+
+/* Clouds */
+.cloud{position:absolute;background:rgba(255,255,255,0.85);border-radius:50px;animation:cloud-move linear infinite;}
+.cloud::before,.cloud::after{content:'';position:absolute;background:inherit;border-radius:50%;}
+@keyframes cloud-move{from{transform:translateX(110vw)}to{transform:translateX(-300px)}}
+
+/* Sun */
+.sun-obj{position:absolute;top:18px;right:60px;width:50px;height:50px;border-radius:50%;background:radial-gradient(circle,#ffe566,#f4a261);box-shadow:0 0 30px rgba(244,162,97,0.8);animation:sun-pulse 3s ease-in-out infinite;}
+@keyframes sun-pulse{0%,100%{box-shadow:0 0 30px rgba(244,162,97,0.8)}50%{box-shadow:0 0 50px rgba(244,162,97,1)}}
+
+/* Volcano */
+.volcano-wrap{position:absolute;bottom:50px;right:40px;}
+.volcano-body{width:0;height:0;border-left:55px solid transparent;border-right:55px solid transparent;border-bottom:100px solid #5a3a2a;}
+.volcano-top{position:absolute;top:-18px;left:50%;transform:translateX(-50%);width:40px;height:20px;background:#3a2010;border-radius:50% 50% 0 0;}
+.lava-p{position:absolute;top:-14px;left:50%;width:8px;height:8px;border-radius:50%;background:var(--lava);animation:lava-fly linear infinite;transform-origin:center bottom;}
+@keyframes lava-fly{0%{transform:translateX(-50%) translateY(0) scale(1);opacity:1;}100%{transform:translateX(calc(-50% + var(--dx))) translateY(-80px) scale(0.3);opacity:0;}}
+
+/* Water */
+.water-layer{position:absolute;bottom:50px;left:0;right:0;height:40px;background:linear-gradient(180deg,#2980b9,#1a5276);animation:water-bob 2s ease-in-out infinite;}
+.water-layer::before{content:'';position:absolute;top:-6px;left:0;right:0;height:12px;background:repeating-linear-gradient(90deg,rgba(144,224,239,0.6) 0,rgba(144,224,239,0.6) 30px,transparent 30px,transparent 60px);animation:wave-shift 1.5s linear infinite;}
+@keyframes water-bob{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.06)}}
+@keyframes wave-shift{from{background-position:0 0}to{background-position:60px 0}}
+
+/* Crystal */
+.crystal-glow{position:absolute;bottom:65px;left:50%;transform:translateX(-50%);font-size:2.8rem;animation:c-float 2s ease-in-out infinite;filter:drop-shadow(0 0 18px rgba(100,200,255,0.95));}
+@keyframes c-float{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-14px)}}
+
+/* Rainbow */
+.rainbow-arc{position:absolute;top:8px;left:50%;transform:translateX(-50%);width:210px;height:105px;border-radius:105px 105px 0 0;border-top:9px solid rgba(255,0,0,0.55);box-shadow:0 -9px 0 rgba(255,140,0,0.5),0 -18px 0 rgba(255,255,0,0.5),0 -27px 0 rgba(0,200,0,0.5),0 -36px 0 rgba(30,100,255,0.55);}
+
+/* Trees */
+.tree{position:absolute;bottom:50px;}
+.tree-top{font-size:2rem;text-align:center;margin-bottom:-8px;display:block;animation:tree-sway 4s ease-in-out infinite;}
+.tree-trunk{width:10px;margin:0 auto;background:#5c3d1e;border-radius:2px;}
+@keyframes tree-sway{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}
+
+/* Dino characters */
+.dino-char{position:absolute;bottom:52px;font-size:2.8rem;filter:drop-shadow(2px 4px 4px rgba(0,0,0,0.4));user-select:none;transition:left 1s ease,right 1s ease;}
+.dino-idle{animation:d-idle 2s ease-in-out infinite;}
+.dino-walk-r{animation:d-walk-r 0.4s steps(2) infinite;}
+.dino-walk-l{animation:d-walk-l 0.4s steps(2) infinite;}
+@keyframes d-idle{0%,100%{transform:translateY(0) scaleX(1)}50%{transform:translateY(-4px) scaleX(1)}}
+@keyframes d-walk-r{0%{transform:translateY(0) scaleX(1)}50%{transform:translateY(-5px) scaleX(1)}}
+@keyframes d-walk-l{0%{transform:translateY(0) scaleX(-1)}50%{transform:translateY(-5px) scaleX(-1)}}
+
+/* Egg */
+.egg-obj{position:absolute;bottom:62px;animation:egg-wobble 1.5s ease-in-out infinite;}
+@keyframes egg-wobble{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+
+/* Confetti */
+.confetti{position:absolute;width:10px;height:10px;border-radius:2px;animation:confetti-fall linear infinite;}
+@keyframes confetti-fall{0%{transform:translateY(-20px) rotate(0);opacity:1;}100%{transform:translateY(240px) rotate(720deg);opacity:0;}}
+
+/* ── TRANSITION ── */
+#transition{position:fixed;inset:0;z-index:999;background:#0d2b1a;opacity:0;pointer-events:none;transition:opacity 0.3s ease;display:flex;align-items:center;justify-content:center;font-size:5rem;}
+#transition.on{opacity:1;pointer-events:all;}
+
+/* ── APP ── */
+#app{max-width:700px;margin:0 auto;padding:0 16px 40px;}
+.header{text-align:center;padding:14px 0 6px;}
+.header h1{font-family:'Fredoka One',cursive;font-size:clamp(1.8rem,5vw,2.8rem);color:var(--lime);text-shadow:3px 3px 0 #0d2b1a,0 0 30px rgba(116,198,157,0.4);}
+.header .sub{color:var(--stone);font-size:0.9rem;font-weight:600;}
+
+.story-card{background:linear-gradient(135deg,rgba(254,250,224,0.97),rgba(221,161,94,0.1));border:3px solid var(--stone);border-radius:24px;padding:24px 22px;margin:12px 0;box-shadow:0 8px 32px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.5);animation:card-in 0.5s cubic-bezier(0.34,1.56,0.64,1);}
+@keyframes card-in{from{opacity:0;transform:translateY(18px) scale(0.96)}to{opacity:1;transform:none}}
+
+.cbadge{display:inline-block;background:var(--amber);color:#fff;font-family:'Fredoka One',cursive;font-size:0.82rem;padding:3px 12px;border-radius:20px;margin-bottom:10px;}
+.stext{color:#2c1810;font-size:1rem;line-height:1.75;font-weight:600;}
+
+.pdots{display:flex;gap:7px;margin-bottom:10px;}
+.pd{width:10px;height:10px;border-radius:50%;background:rgba(116,198,157,0.22);border:2px solid var(--lime);transition:all 0.3s;}
+.pd.done{background:var(--lime);}
+.pd.now{background:var(--sun);border-color:var(--sun);transform:scale(1.35);}
+
+.pwrap{background:rgba(44,24,16,0.1);border-radius:20px;height:7px;margin:12px 0 0;overflow:hidden;}
+.pfill{height:100%;background:linear-gradient(90deg,var(--lime),var(--sun));border-radius:20px;transition:width 0.6s ease;}
+.plbl{color:rgba(44,24,16,0.4);font-size:0.78rem;text-align:right;margin-top:3px;font-weight:700;}
+
+.ctitle{font-family:'Fredoka One',cursive;color:var(--sky);font-size:1.05rem;text-align:center;margin:14px 0 10px;}
+.choices{display:flex;flex-direction:column;gap:9px;}
+.cbtn{background:linear-gradient(135deg,rgba(116,198,157,0.12),rgba(45,106,79,0.28));border:2px solid var(--lime);border-radius:15px;padding:13px 18px;color:var(--cream);font-family:'Nunito',sans-serif;font-size:0.98rem;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:11px;transition:all 0.18s ease;box-shadow:0 3px 10px rgba(0,0,0,0.2);animation:ch-in 0.4s ease backwards;}
+.cbtn:nth-child(1){animation-delay:0.05s}.cbtn:nth-child(2){animation-delay:0.12s}.cbtn:nth-child(3){animation-delay:0.19s}
+@keyframes ch-in{from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:none}}
+.cbtn:hover{background:linear-gradient(135deg,rgba(116,198,157,0.32),rgba(45,106,79,0.5));border-color:var(--sun);transform:translateX(5px) scale(1.01);}
+.cbtn:active{transform:scale(0.97);}
+.cico{font-size:1.35rem;flex-shrink:0;}
+
+/* Start */
+.start-card{text-align:center;padding:14px 0;}
+.big-dino{font-size:4.5rem;display:block;animation:bounce 1.8s ease-in-out infinite;margin-bottom:6px;}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+.start-title{font-family:'Fredoka One',cursive;font-size:clamp(1.6rem,4.5vw,2.4rem);color:var(--cream);margin-bottom:8px;text-shadow:2px 2px 0 #0d2b1a;}
+.start-desc{color:var(--lime);font-size:0.95rem;font-weight:700;margin-bottom:16px;line-height:1.6;}
+.spicker{display:flex;flex-direction:column;gap:9px;}
+.spbtn{background:linear-gradient(135deg,rgba(116,198,157,0.18),rgba(45,106,79,0.38));border:2px solid var(--lime);border-radius:15px;padding:13px 18px;color:var(--cream);font-family:'Nunito',sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;gap:11px;transition:all 0.2s;animation:ch-in 0.4s ease backwards;}
+.spbtn:nth-child(1){animation-delay:.1s}.spbtn:nth-child(2){animation-delay:.2s}.spbtn:nth-child(3){animation-delay:.3s}
+.spbtn:hover{border-color:var(--sun);transform:translateX(5px);}
+.sp-ico{font-size:1.9rem;}
+.sp-name{font-family:'Fredoka One',cursive;font-size:1.05rem;color:var(--lime);}
+.sp-desc{font-size:0.82rem;color:rgba(254,250,224,0.65);margin-top:1px;}
+
+/* End */
+.end-emoji{font-size:5rem;display:block;text-align:center;margin-bottom:12px;animation:spin-in .8s cubic-bezier(0.34,1.56,0.64,1);}
+@keyframes spin-in{from{transform:scale(0) rotate(-180deg)}70%{transform:scale(1.2) rotate(10deg)}to{transform:scale(1) rotate(0)}}
+.end-title{font-family:'Fredoka One',cursive;font-size:1.9rem;color:var(--sun);text-align:center;margin-bottom:10px;text-shadow:0 0 20px rgba(244,162,97,0.5);}
+.end-score{display:inline-block;background:var(--amber);color:#fff;font-family:'Fredoka One',cursive;padding:7px 20px;border-radius:20px;font-size:1rem;margin:12px 0 18px;}
+.btn-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px;}
+.rbtn{background:linear-gradient(135deg,var(--sun),var(--amber));border:none;border-radius:50px;padding:13px 30px;color:#fff;font-family:'Fredoka One',cursive;font-size:1.1rem;cursor:pointer;box-shadow:0 5px 18px rgba(231,111,81,0.4);transition:all 0.2s;}
+.rbtn:hover{transform:scale(1.06);}
+.rbtn.g{background:linear-gradient(135deg,#74c69d,#52b788);color:#1a472a;}
+</style>
+</head>
+<body>
+
+<button id="audio-btn" onclick="toggleAudio()" title="Sound an/aus">🔊</button>
+<div id="bg-story"></div>
+<div id="transition">🦕</div>
+
+<div id="scene-canvas">
+  <div id="sky-bg" class="sky-layer"></div>
+  <div id="scene-objs"></div>
+  <div class="ground"></div>
+</div>
+
+<div id="app" style="position:relative;z-index:1;">
+  <div class="header">
+    <h1>🦕 Dino-Abenteuer</h1>
+    <p class="sub">Wähle deinen Weg durch die Urzeit!</p>
+  </div>
+  <div id="game"></div>
+</div>
+
+<script>
+
+// ═══════════════════════════════════
+// FULL-PAGE STORY BACKGROUNDS
+// ═══════════════════════════════════
+const BG = {
+  volcano: `<svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <radialGradient id="skyV" cx="50%" cy="30%">
+        <stop offset="0%" stop-color="#7a1a00" stop-opacity="0.9"/>
+        <stop offset="100%" stop-color="#1a0800" stop-opacity="0.95"/>
+      </radialGradient>
+      <filter id="glow"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      <filter id="blur4"><feGaussianBlur stdDeviation="4"/></filter>
+    </defs>
+    <!-- Sky -->
+    <rect width="1200" height="800" fill="url(#skyV)"/>
+    <!-- Distant mountains -->
+    <polygon points="0,600 200,320 400,600" fill="#2a1008" opacity="0.7"/>
+    <polygon points="300,600 550,280 800,600" fill="#1a0800" opacity="0.8"/>
+    <polygon points="700,600 950,300 1200,600" fill="#2a1008" opacity="0.7"/>
+    <!-- Main volcano -->
+    <polygon points="350,800 600,200 850,800" fill="#3d1a08"/>
+    <polygon points="350,800 600,200 850,800" fill="url(#skyV)" opacity="0.3"/>
+    <!-- Crater glow -->
+    <ellipse cx="600" cy="205" rx="55" ry="18" fill="#ff6600" opacity="0.9" filter="url(#glow)"/>
+    <ellipse cx="600" cy="205" rx="35" ry="10" fill="#ffaa00" opacity="0.95" filter="url(#glow)"/>
+    <!-- Lava flow left -->
+    <path d="M570,220 Q520,350 480,500 Q460,580 440,700" stroke="#ff4400" stroke-width="18" fill="none" opacity="0.7" stroke-linecap="round"/>
+    <path d="M570,220 Q520,350 480,500 Q460,580 440,700" stroke="#ffaa00" stroke-width="8" fill="none" opacity="0.5" stroke-linecap="round"/>
+    <!-- Lava flow right -->
+    <path d="M630,220 Q680,360 710,480 Q730,580 760,700" stroke="#ff4400" stroke-width="14" fill="none" opacity="0.6" stroke-linecap="round"/>
+    <path d="M630,220 Q680,360 710,480 Q730,580 760,700" stroke="#ff8800" stroke-width="6" fill="none" opacity="0.5" stroke-linecap="round"/>
+    <!-- Lava pool at bottom -->
+    <ellipse cx="600" cy="760" rx="320" ry="40" fill="#ff4400" opacity="0.25" filter="url(#blur4)"/>
+    <!-- Flying embers -->
+    <circle cx="560" cy="160" r="5" fill="#ffcc00" opacity="0.9"><animate attributeName="cy" values="160;60;160" dur="2.1s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.9;0;0.9" dur="2.1s" repeatCount="indefinite"/></circle>
+    <circle cx="600" cy="140" r="7" fill="#ff6600" opacity="0.8"><animate attributeName="cy" values="140;30;140" dur="1.8s" repeatCount="indefinite"/><animate attributeName="cx" values="600;570;600" dur="1.8s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.8;0;0.8" dur="1.8s" repeatCount="indefinite"/></circle>
+    <circle cx="640" cy="155" r="4" fill="#ffaa00" opacity="0.9"><animate attributeName="cy" values="155;50;155" dur="2.5s" repeatCount="indefinite"/><animate attributeName="cx" values="640;680;640" dur="2.5s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.9;0;0.9" dur="2.5s" repeatCount="indefinite"/></circle>
+    <circle cx="580" cy="170" r="3" fill="#ff3300" opacity="0.8"><animate attributeName="cy" values="170;80;170" dur="1.5s" repeatCount="indefinite"/><animate attributeName="cx" values="580;540;580" dur="1.5s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.8;0;0.8" dur="1.5s" repeatCount="indefinite"/></circle>
+    <circle cx="615" cy="145" r="6" fill="#ffdd00" opacity="0.7"><animate attributeName="cy" values="145;20;145" dur="3s" repeatCount="indefinite"/><animate attributeName="cx" values="615;650;615" dur="3s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.7;0;0.7" dur="3s" repeatCount="indefinite"/></circle>
+    <!-- Smoke puffs -->
+    <ellipse cx="590" cy="130" rx="30" ry="20" fill="#555" opacity="0.18"><animate attributeName="cy" values="130;-20;130" dur="4s" repeatCount="indefinite"/><animate attributeName="rx" values="30;80;30" dur="4s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.18;0;0.18" dur="4s" repeatCount="indefinite"/></ellipse>
+    <ellipse cx="610" cy="110" rx="25" ry="18" fill="#666" opacity="0.15"><animate attributeName="cy" values="110;-30;110" dur="3.5s" repeatCount="indefinite"/><animate attributeName="rx" values="25;70;25" dur="3.5s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.15;0;0.15" dur="3.5s" repeatCount="indefinite"/></ellipse>
+    <!-- Stars -->
+    <circle cx="100" cy="80" r="2" fill="white" opacity="0.4"/>
+    <circle cx="200" cy="50" r="1.5" fill="white" opacity="0.3"/>
+    <circle cx="900" cy="70" r="2" fill="white" opacity="0.35"/>
+    <circle cx="1050" cy="40" r="1.5" fill="white" opacity="0.3"/>
+    <circle cx="150" cy="160" r="1" fill="white" opacity="0.25"/>
+    <circle cx="1000" cy="130" r="1.5" fill="white" opacity="0.3"/>
+  </svg>`,
+
+  egg: `<svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <radialGradient id="skyE" cx="50%" cy="40%">
+        <stop offset="0%" stop-color="#0d2b3a" stop-opacity="0.92"/>
+        <stop offset="100%" stop-color="#051520" stop-opacity="0.97"/>
+      </radialGradient>
+      <radialGradient id="eggGlow" cx="50%" cy="50%">
+        <stop offset="0%" stop-color="#ffe566" stop-opacity="0.6"/>
+        <stop offset="60%" stop-color="#f4a261" stop-opacity="0.2"/>
+        <stop offset="100%" stop-color="transparent" stop-opacity="0"/>
+      </radialGradient>
+      <filter id="softglow"><feGaussianBlur stdDeviation="12" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      <filter id="eggBlur"><feGaussianBlur stdDeviation="20"/></filter>
+    </defs>
+    <!-- Sky -->
+    <rect width="1200" height="800" fill="url(#skyE)"/>
+    <!-- Moon -->
+    <circle cx="900" cy="120" r="70" fill="#fffbe8" opacity="0.08"/>
+    <circle cx="900" cy="120" r="55" fill="#fffbe8" opacity="0.1"/>
+    <!-- Stars field -->
+    <circle cx="80" cy="60" r="1.5" fill="white" opacity="0.5"/><circle cx="200" cy="90" r="1" fill="white" opacity="0.4"/><circle cx="350" cy="40" r="2" fill="white" opacity="0.5"/><circle cx="500" cy="120" r="1" fill="white" opacity="0.3"/><circle cx="650" cy="55" r="1.5" fill="white" opacity="0.45"/><circle cx="750" cy="30" r="1" fill="white" opacity="0.4"/><circle cx="1000" cy="80" r="2" fill="white" opacity="0.5"/><circle cx="1100" cy="50" r="1" fill="white" opacity="0.35"/><circle cx="1150" cy="110" r="1.5" fill="white" opacity="0.4"/><circle cx="120" cy="180" r="1" fill="white" opacity="0.3"/><circle cx="420" cy="200" r="1.5" fill="white" opacity="0.35"/><circle cx="820" cy="160" r="1" fill="white" opacity="0.3"/>
+    <!-- Twinkling stars -->
+    <circle cx="300" cy="70" r="2" fill="#ffe566" opacity="0.6"><animate attributeName="opacity" values="0.6;0.1;0.6" dur="2s" repeatCount="indefinite"/></circle>
+    <circle cx="700" cy="45" r="2" fill="#90e0ef" opacity="0.5"><animate attributeName="opacity" values="0.5;0.1;0.5" dur="3s" repeatCount="indefinite"/></circle>
+    <circle cx="1050" cy="150" r="2" fill="#ffe566" opacity="0.5"><animate attributeName="opacity" values="0.5;0.1;0.5" dur="2.5s" repeatCount="indefinite"/></circle>
+    <!-- Big central egg glow -->
+    <ellipse cx="600" cy="500" rx="220" ry="260" fill="url(#eggGlow)" filter="url(#eggBlur)"/>
+    <!-- Giant background egg -->
+    <ellipse cx="600" cy="490" rx="160" ry="200" fill="#dda15e" opacity="0.06"/>
+    <ellipse cx="600" cy="490" rx="130" ry="165" fill="#f4a261" opacity="0.07"/>
+    <ellipse cx="600" cy="490" rx="100" ry="130" fill="#ffe566" opacity="0.06"/>
+    <!-- Egg outline -->
+    <ellipse cx="600" cy="490" rx="162" ry="202" fill="none" stroke="#dda15e" stroke-width="2" opacity="0.2"/>
+    <!-- Crack lines animated -->
+    <path d="M600,330 L590,380 L610,390 L595,450" stroke="#ffe566" stroke-width="2.5" fill="none" opacity="0"><animate attributeName="opacity" values="0;0.4;0;0.4;0" dur="4s" repeatCount="indefinite"/></path>
+    <path d="M560,420 L575,440 L555,470" stroke="#ffe566" stroke-width="2" fill="none" opacity="0"><animate attributeName="opacity" values="0;0.3;0;0.3;0" dur="5s" repeatCount="indefinite" begin="1s"/></path>
+    <!-- Sparkles around egg -->
+    <circle cx="460" cy="380" r="4" fill="#ffe566" opacity="0"><animate attributeName="opacity" values="0;0.7;0" dur="2s" repeatCount="indefinite"/><animate attributeName="r" values="2;6;2" dur="2s" repeatCount="indefinite"/></circle>
+    <circle cx="740" cy="420" r="3" fill="#f4a261" opacity="0"><animate attributeName="opacity" values="0;0.6;0" dur="2.5s" repeatCount="indefinite" begin="0.5s"/><animate attributeName="r" values="2;5;2" dur="2.5s" repeatCount="indefinite" begin="0.5s"/></circle>
+    <circle cx="500" cy="580" r="4" fill="#ffe566" opacity="0"><animate attributeName="opacity" values="0;0.5;0" dur="3s" repeatCount="indefinite" begin="1s"/></circle>
+    <circle cx="700" cy="560" r="3" fill="#f4a261" opacity="0"><animate attributeName="opacity" values="0;0.6;0" dur="1.8s" repeatCount="indefinite" begin="0.3s"/></circle>
+    <!-- Jungle silhouette bottom -->
+    <path d="M0,700 Q100,620 200,680 Q300,620 400,670 Q500,610 600,660 Q700,610 800,665 Q900,615 1000,670 Q1100,620 1200,680 L1200,800 L0,800 Z" fill="#051a10" opacity="0.8"/>
+    <path d="M0,750 Q150,700 300,730 Q450,700 600,725 Q750,695 900,725 Q1050,700 1200,740 L1200,800 L0,800 Z" fill="#030f08" opacity="0.9"/>
+  </svg>`,
+
+  crystal: `<svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <radialGradient id="skyC" cx="50%" cy="50%">
+        <stop offset="0%" stop-color="#0d0d3a" stop-opacity="0.93"/>
+        <stop offset="100%" stop-color="#020210" stop-opacity="0.97"/>
+      </radialGradient>
+      <radialGradient id="crystalGlow" cx="50%" cy="50%">
+        <stop offset="0%" stop-color="#64c8ff" stop-opacity="0.5"/>
+        <stop offset="50%" stop-color="#a020f0" stop-opacity="0.15"/>
+        <stop offset="100%" stop-color="transparent" stop-opacity="0"/>
+      </radialGradient>
+      <filter id="cglow"><feGaussianBlur stdDeviation="10" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      <filter id="cblur"><feGaussianBlur stdDeviation="18"/></filter>
+    </defs>
+    <!-- Sky -->
+    <rect width="1200" height="800" fill="url(#skyC)"/>
+    <!-- Rainbow arc large -->
+    <path d="M100,600 Q600,-100 1100,600" stroke="red" stroke-width="12" fill="none" opacity="0.08"/>
+    <path d="M130,600 Q600,-60 1070,600" stroke="orange" stroke-width="12" fill="none" opacity="0.08"/>
+    <path d="M160,600 Q600,-20 1040,600" stroke="yellow" stroke-width="12" fill="none" opacity="0.08"/>
+    <path d="M190,600 Q600,20 1010,600" stroke="#00cc00" stroke-width="12" fill="none" opacity="0.08"/>
+    <path d="M220,600 Q600,60 980,600" stroke="blue" stroke-width="12" fill="none" opacity="0.08"/>
+    <path d="M250,600 Q600,100 950,600" stroke="violet" stroke-width="12" fill="none" opacity="0.08"/>
+    <!-- Central crystal glow -->
+    <ellipse cx="600" cy="420" rx="250" ry="280" fill="url(#crystalGlow)" filter="url(#cblur)"/>
+    <!-- Big crystal shape -->
+    <polygon points="600,150 680,350 720,550 600,700 480,550 520,350" fill="#64c8ff" opacity="0.05"/>
+    <polygon points="600,150 680,350 720,550 600,700 480,550 520,350" fill="none" stroke="#64c8ff" stroke-width="1.5" opacity="0.2"/>
+    <!-- Inner crystal facets -->
+    <polygon points="600,180 660,340 600,500 540,340" fill="#a0e0ff" opacity="0.04"/>
+    <polygon points="600,180 660,340 600,500 540,340" fill="none" stroke="#a0e0ff" stroke-width="1" opacity="0.15"/>
+    <!-- Floating small crystals -->
+    <polygon points="200,300 215,340 200,380 185,340" fill="#64c8ff" opacity="0.12"><animateTransform attributeName="transform" type="translate" values="0,0;0,-15;0,0" dur="3s" repeatCount="indefinite"/></polygon>
+    <polygon points="950,250 965,290 950,330 935,290" fill="#c864ff" opacity="0.12"><animateTransform attributeName="transform" type="translate" values="0,0;0,-12;0,0" dur="2.5s" repeatCount="indefinite" begin="0.5s"/></polygon>
+    <polygon points="150,500 162,530 150,560 138,530" fill="#64ffaa" opacity="0.1"><animateTransform attributeName="transform" type="translate" values="0,0;0,-10;0,0" dur="4s" repeatCount="indefinite" begin="1s"/></polygon>
+    <polygon points="1000,480 1012,510 1000,540 988,510" fill="#ffe566" opacity="0.1"><animateTransform attributeName="transform" type="translate" values="0,0;0,-8;0,0" dur="3.5s" repeatCount="indefinite" begin="0.3s"/></polygon>
+    <!-- Sparkle dots -->
+    <circle cx="600" cy="420" r="6" fill="white" opacity="0"><animate attributeName="opacity" values="0;0.8;0" dur="2s" repeatCount="indefinite"/><animate attributeName="r" values="4;10;4" dur="2s" repeatCount="indefinite"/></circle>
+    <circle cx="450" cy="300" r="3" fill="#64c8ff" opacity="0"><animate attributeName="opacity" values="0;0.6;0" dur="1.5s" repeatCount="indefinite" begin="0.3s"/></circle>
+    <circle cx="750" cy="350" r="3" fill="#c864ff" opacity="0"><animate attributeName="opacity" values="0;0.6;0" dur="2.2s" repeatCount="indefinite" begin="0.7s"/></circle>
+    <circle cx="530" cy="520" r="3" fill="#64ffaa" opacity="0"><animate attributeName="opacity" values="0;0.5;0" dur="1.8s" repeatCount="indefinite" begin="1s"/></circle>
+    <circle cx="670" cy="510" r="2" fill="#ffe566" opacity="0"><animate attributeName="opacity" values="0;0.7;0" dur="2.5s" repeatCount="indefinite" begin="0.5s"/></circle>
+    <!-- Stars -->
+    <circle cx="100" cy="50" r="1.5" fill="white" opacity="0.5"/><circle cx="250" cy="80" r="1" fill="white" opacity="0.4"/><circle cx="400" cy="30" r="2" fill="#64c8ff" opacity="0.4"/><circle cx="800" cy="60" r="1.5" fill="white" opacity="0.45"/><circle cx="1050" cy="40" r="1" fill="white" opacity="0.4"/><circle cx="1150" cy="90" r="2" fill="#c864ff" opacity="0.4"/>
+    <circle cx="300" cy="120" r="2" fill="#ffe566" opacity="0.5"><animate attributeName="opacity" values="0.5;0.1;0.5" dur="2s" repeatCount="indefinite"/></circle>
+    <circle cx="900" cy="100" r="2" fill="#64c8ff" opacity="0.5"><animate attributeName="opacity" values="0.5;0.1;0.5" dur="3s" repeatCount="indefinite"/></circle>
+    <!-- Forest silhouette -->
+    <path d="M0,700 Q100,640 200,680 Q300,630 400,665 Q500,625 600,660 Q700,625 800,660 Q900,630 1000,665 Q1100,635 1200,675 L1200,800 L0,800 Z" fill="#05051a" opacity="0.85"/>
+  </svg>`
+};
+
+function setStoryBg(storyKey) {
+  const el = document.getElementById('bg-story');
+  el.innerHTML = BG[storyKey] || '';
+  if (BG[storyKey]) {
+    el.classList.add('visible');
+  } else {
+    el.classList.remove('visible');
+  }
+}
+function clearStoryBg() {
+  fadeOutBgMusic(1.5);
+  const el = document.getElementById('bg-story');
+  el.classList.remove('visible');
+  setTimeout(() => { el.innerHTML = ''; }, 1500);
+}
+
+
+// ═══════════════════════════════════
+// AUDIO ENGINE
+// ═══════════════════════════════════
+let audioCtx = null;
+let bgMusicNodes = {};
+let bgMusicPlaying = false;
+let masterGain = null;
+let musicGain = null;
+let sfxGain = null;
+let audioEnabled = true;
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.7;
+  masterGain.connect(audioCtx.destination);
+  musicGain = audioCtx.createGain();
+  musicGain.gain.value = 0.35;
+  musicGain.connect(masterGain);
+  sfxGain = audioCtx.createGain();
+  sfxGain.gain.value = 0.7;
+  sfxGain.connect(masterGain);
+}
+
+function toggleAudio() {
+  audioEnabled = !audioEnabled;
+  if (masterGain) masterGain.gain.value = audioEnabled ? 0.7 : 0;
+  document.getElementById('audio-btn').textContent = audioEnabled ? '🔊' : '🔇';
+}
+
+// ── SFX ──
+function playTone(freq, type, duration, vol=0.5, delay=0) {
+  if (!audioCtx || !audioEnabled) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain); gain.connect(sfxGain);
+  osc.type = type; osc.frequency.value = freq;
+  const t = audioCtx.currentTime + delay;
+  gain.gain.setValueAtTime(vol, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+  osc.start(t); osc.stop(t + duration);
+}
+
+function playNoise(duration, vol=0.3, delay=0) {
+  if (!audioCtx || !audioEnabled) return;
+  const bufSize = audioCtx.sampleRate * duration;
+  const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+  const src = audioCtx.createBufferSource();
+  const gain = audioCtx.createGain();
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass'; filter.frequency.value = 400;
+  src.buffer = buf;
+  src.connect(filter); filter.connect(gain); gain.connect(sfxGain);
+  const t = audioCtx.currentTime + delay;
+  gain.gain.setValueAtTime(vol, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+  src.start(t); src.stop(t + duration);
+}
+
+// SFX: Button click – happy upward ding
+function sfxClick() {
+  initAudio();
+  playTone(440, 'sine', 0.08, 0.4);
+  playTone(550, 'sine', 0.08, 0.35, 0.06);
+  playTone(660, 'sine', 0.12, 0.3, 0.12);
+}
+
+// SFX: Scene transition – whoosh
+function sfxTransition() {
+  initAudio();
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.connect(gain); gain.connect(sfxGain);
+  osc.type = 'sawtooth';
+  const t = audioCtx.currentTime;
+  osc.frequency.setValueAtTime(800, t);
+  osc.frequency.exponentialRampToValueAtTime(80, t + 0.35);
+  gain.gain.setValueAtTime(0.3, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+  osc.start(t); osc.stop(t + 0.35);
+  playNoise(0.25, 0.15);
+}
+
+// SFX: Victory fanfare
+function sfxWin() {
+  initAudio();
+  const melody = [523,659,784,1047];
+  melody.forEach((f,i) => playTone(f, 'square', 0.25, 0.4, i*0.18));
+  playTone(1047, 'sine', 0.5, 0.5, 0.72);
+}
+
+// SFX: Story select – magical shimmer
+function sfxSelect() {
+  initAudio();
+  [800,1000,1200,1500,1800].forEach((f,i) => {
+    playTone(f, 'sine', 0.15, 0.25, i*0.05);
+  });
+}
+
+// SFX: Dino roar (low rumble)
+function sfxRoar() {
+  initAudio();
+  playTone(80, 'sawtooth', 0.4, 0.5);
+  playTone(100, 'sawtooth', 0.35, 0.4, 0.05);
+  playNoise(0.3, 0.2, 0.1);
+}
+
+// SFX: Lava bubble
+function sfxLava() {
+  initAudio();
+  playTone(120, 'sine', 0.2, 0.4);
+  playTone(90, 'sine', 0.25, 0.3, 0.1);
+  playNoise(0.15, 0.25, 0.05);
+}
+
+// SFX: Egg crack
+function sfxCrack() {
+  initAudio();
+  playNoise(0.08, 0.5);
+  playTone(2000, 'sawtooth', 0.06, 0.3, 0.02);
+  playNoise(0.06, 0.35, 0.1);
+}
+
+// SFX: Crystal chime
+function sfxCrystal() {
+  initAudio();
+  [1047,1319,1568,2093].forEach((f,i) => {
+    playTone(f, 'sine', 0.4, 0.3, i*0.1);
+  });
+}
+
+// ── BACKGROUND MUSIC ──
+function stopBgMusic() {
+  if (!audioCtx) return;
+  Object.values(bgMusicNodes).forEach(n => { try { n.stop(); } catch(e){} });
+  bgMusicNodes = {};
+  bgMusicPlaying = false;
+}
+
+function fadeOutBgMusic(duration=1.5) {
+  if (!musicGain || !bgMusicPlaying) return;
+  const t = audioCtx.currentTime;
+  musicGain.gain.setValueAtTime(musicGain.gain.value, t);
+  musicGain.gain.linearRampToValueAtTime(0, t + duration);
+  setTimeout(() => {
+    stopBgMusic();
+    musicGain.gain.value = 0.35;
+  }, duration * 1000 + 100);
+}
+
+function fadeInBgMusic(duration=2) {
+  if (!musicGain) return;
+  const t = audioCtx.currentTime;
+  musicGain.gain.setValueAtTime(0, t);
+  musicGain.gain.linearRampToValueAtTime(0.35, t + duration);
+}
+
+// Creates a looping oscillator with optional LFO vibrato
+function mkLoop(freq, type, vol, vibratoRate=0, vibratoDepth=0) {
+  if (!audioCtx) return null;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type; osc.frequency.value = freq;
+  gain.gain.value = vol;
+  if (vibratoRate > 0) {
+    const lfo = audioCtx.createOscillator();
+    const lfoGain = audioCtx.createGain();
+    lfo.frequency.value = vibratoRate;
+    lfoGain.gain.value = vibratoDepth;
+    lfo.connect(lfoGain); lfoGain.connect(osc.frequency);
+    lfo.start();
+    bgMusicNodes['lfo_' + freq] = lfo;
+  }
+  osc.connect(gain); gain.connect(musicGain);
+  osc.start();
+  return osc;
+}
+
+// Melodic arpeggio sequencer
+function mkArpeggio(notes, tempo, type, vol) {
+  if (!audioCtx) return;
+  let step = 0;
+  const interval = setInterval(() => {
+    if (!audioCtx || !bgMusicPlaying) { clearInterval(interval); return; }
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type; osc.frequency.value = notes[step % notes.length];
+    gain.gain.value = 0;
+    osc.connect(gain); gain.connect(musicGain);
+    const t = audioCtx.currentTime;
+    gain.gain.linearRampToValueAtTime(vol, t + 0.02);
+    gain.gain.linearRampToValueAtTime(0, t + (tempo * 0.8 / 1000));
+    osc.start(t); osc.stop(t + tempo / 1000);
+    step++;
+  }, tempo);
+  bgMusicNodes['arp_' + tempo] = { stop: () => clearInterval(interval) };
+}
+
+// VOLCANO MUSIC – dark, dramatic, pulsing low drones
+function playVolcanoMusic() {
+  if (!audioCtx) return;
+  bgMusicPlaying = true;
+  fadeInBgMusic(2);
+  // Deep rumble drone
+  bgMusicNodes.d1 = mkLoop(55, 'sawtooth', 0.12, 0.3, 3);
+  bgMusicNodes.d2 = mkLoop(110, 'sawtooth', 0.08, 0.5, 2);
+  bgMusicNodes.d3 = mkLoop(82, 'triangle', 0.1, 0.2, 4);
+  // Ominous pulse melody
+  mkArpeggio([220,196,165,185,165,185,220,246], 350, 'sawtooth', 0.06);
+  // High tension strings sim
+  bgMusicNodes.s1 = mkLoop(440, 'triangle', 0.04, 4, 8);
+  bgMusicNodes.s2 = mkLoop(330, 'triangle', 0.04, 3, 6);
+}
+
+// EGG MUSIC – soft, mysterious, gentle wonder
+function playEggMusic() {
+  if (!audioCtx) return;
+  bgMusicPlaying = true;
+  fadeInBgMusic(2.5);
+  // Soft pad
+  bgMusicNodes.p1 = mkLoop(261, 'sine', 0.08, 0.3, 2);
+  bgMusicNodes.p2 = mkLoop(329, 'sine', 0.06, 0.2, 3);
+  bgMusicNodes.p3 = mkLoop(392, 'sine', 0.05, 0.4, 2);
+  // Gentle melodic arpeggio
+  mkArpeggio([523,659,784,659,523,440,523,659], 500, 'sine', 0.05);
+  // Shimmer high notes
+  mkArpeggio([1047,1319,1047,880,1047,1319,1568,1319], 750, 'sine', 0.03);
+}
+
+// CRYSTAL MUSIC – magical, ethereal, sparkling
+function playCrystalMusic() {
+  if (!audioCtx) return;
+  bgMusicPlaying = true;
+  fadeInBgMusic(2);
+  // Ethereal pad
+  bgMusicNodes.p1 = mkLoop(196, 'sine', 0.07, 0.2, 3);
+  bgMusicNodes.p2 = mkLoop(246, 'sine', 0.05, 0.3, 2);
+  bgMusicNodes.p3 = mkLoop(293, 'sine', 0.04, 0.15, 4);
+  // Crystal arpeggio high
+  mkArpeggio([1047,1319,1568,2093,1568,1319,1047,880], 280, 'sine', 0.04);
+  // Mid melody
+  mkArpeggio([523,659,784,523,440,523,659,784], 420, 'triangle', 0.04);
+  // Low shimmer
+  bgMusicNodes.l1 = mkLoop(130, 'triangle', 0.06, 0.1, 5);
+}
+
+// WIN MUSIC – joyful celebration
+function playWinMusic() {
+  if (!audioCtx) return;
+  stopBgMusic();
+  bgMusicPlaying = true;
+  musicGain.gain.value = 0.45;
+  mkArpeggio([523,659,784,1047,784,659,523,659,784,1047,1319,1047], 220, 'square', 0.08);
+  mkArpeggio([261,329,392,523,392,329,261,329], 440, 'triangle', 0.06);
+  bgMusicNodes.b1 = mkLoop(130, 'sine', 0.1);
+}
+
+const STORY_MUSIC = {
+  volcano: playVolcanoMusic,
+  egg: playEggMusic,
+  crystal: playCrystalMusic
+};
+
+function startStoryMusic(key) {
+  initAudio();
+  stopBgMusic();
+  setTimeout(() => {
+    if (STORY_MUSIC[key]) STORY_MUSIC[key]();
+  }, 300);
+}
+
+// ═══════════════════════════════════
+// SCENE BUILDER
+// ═══════════════════════════════════
+const SKIES = {
+  jungle:'linear-gradient(180deg,#1a3a5c 0%,#2d6a4f 55%,#1a472a 100%)',
+  volcano:'linear-gradient(180deg,#3d1200 0%,#7a2e00 40%,#1a472a 100%)',
+  cliff:'linear-gradient(180deg,#1a3a5c 0%,#2d5a8c 50%,#2d6a4f 100%)',
+  forest:'linear-gradient(180deg,#0d2010 0%,#1a3d15 100%)',
+  water:'linear-gradient(180deg,#1a3a5c 0%,#1e6091 50%,#1a472a 100%)',
+  crystal:'linear-gradient(180deg,#0d0d2b 0%,#1a1a5c 40%,#1a3a2a 100%)',
+  egg_scene:'linear-gradient(180deg,#1a2a4a 0%,#2d6a4f 60%,#1a472a 100%)',
+  celebration:'linear-gradient(180deg,#0d2b1a 0%,#1a5a2a 55%,#2d6a4f 100%)'
+};
+
+function mkCloud(dark){
+  const bg = dark?'rgba(100,80,60,0.4)':'rgba(255,255,255,0.82)';
+  return [
+    {w:90,h:28,t:18,del:18,dur:'24s'},{w:58,h:20,t:38,del:8,dur:'33s'},{w:74,h:24,t:10,del:14,dur:'27s'}
+  ].map(c=>{
+    const d=document.createElement('div');
+    d.className='cloud';
+    Object.assign(d.style,{width:c.w+'px',height:c.h+'px',top:c.t+'px',background:bg,
+      animationDuration:c.dur,animationDelay:'-'+c.del+'s'});
+    return d;
+  });
+}
+function mkTree(left,h='50px',delay='0s'){
+  const d=document.createElement('div');d.className='tree';d.style.left=left;
+  d.innerHTML=`<span class="tree-top" style="animation-delay:${delay}">🌴</span><div class="tree-trunk" style="height:${h}"></div>`;
+  return d;
+}
+function mkDino(emoji,cls,style){
+  const d=document.createElement('div');d.className='dino-char '+cls;
+  Object.assign(d.style,style);d.textContent=emoji;return d;
+}
+
+function buildScene(type,el,canvas){
+  canvas.style.background=SKIES[type]||SKIES.jungle;
+  el.innerHTML='';
+
+  const add=n=>el.appendChild(n);
+  const addAll=arr=>arr.forEach(n=>el.appendChild(n));
+
+  if(type==='jungle'){
+    addAll(mkCloud());
+    const sun=document.createElement('div');sun.className='sun-obj';add(sun);
+    add(mkTree('8%','42px','0s')); add(mkTree('22%','55px','0.5s')); add(mkTree('65%','48px','1s')); add(mkTree('80%','60px','1.5s')); add(mkTree('91%','38px','0.3s'));
+    const h=mkDino('🧒','dino-walk-r',{left:'-80px'});add(h);
+    add(mkDino('🦕','dino-idle',{right:'70px',fontSize:'3.2rem'}));
+    setTimeout(()=>{h.style.left='14%';h.className='dino-char dino-idle';},900);
+  }
+  else if(type==='volcano'){
+    addAll(mkCloud(true));
+    const v=document.createElement('div');v.className='volcano-wrap';
+    v.innerHTML=`<div class="volcano-body"></div><div class="volcano-top"></div>${
+      [0,1,2,3,4].map(i=>`<div class="lava-p" style="animation-duration:${0.8+i*0.3}s;animation-delay:${i*0.15}s;--dx:${(i-2)*18}px"></div>`).join('')}`;
+    add(v); add(mkTree('5%','44px','0s')); add(mkTree('16%','52px','0.8s'));
+    add(mkDino('🦖','dino-idle',{right:'155px',fontSize:'3rem'}));
+    const h=mkDino('🧒','dino-walk-r',{left:'-80px'});add(h);
+    setTimeout(()=>{h.style.left='18%';h.className='dino-char dino-idle';},900);
+  }
+  else if(type==='cliff'){
+    addAll(mkCloud());
+    const sun=document.createElement('div');sun.className='sun-obj';sun.style.cssText='top:22px;right:80px';add(sun);
+    const bird=document.createElement('div');bird.style.cssText='position:absolute;bottom:50px;right:55px;font-size:4rem;animation:d-idle 2s ease-in-out infinite';bird.textContent='🦅';add(bird);
+    add(mkTree('6%','48px','0s')); add(mkTree('18%','56px','0.7s'));
+    const h=mkDino('🧒','dino-walk-r',{left:'-80px'});add(h);
+    setTimeout(()=>{h.style.left='22%';h.className='dino-char dino-idle';},900);
+  }
+  else if(type==='forest'){
+    ['4%','13%','26%','41%','57%','70%','83%','93%'].forEach((p,i)=>{
+      add(mkTree(p,['40px','55px','48px','62px','38px','52px','45px','58px'][i],i*0.3+'s'));
+    });
+    add(mkDino('🦎','dino-idle',{left:'36%',fontSize:'1.8rem'}));
+    add(mkDino('🦎','dino-idle',{right:'28%',fontSize:'1.6rem'}));
+    const h=mkDino('🧒','dino-walk-r',{left:'-80px'});add(h);
+    setTimeout(()=>{h.style.left='20%';h.className='dino-char dino-idle';},900);
+  }
+  else if(type==='water'){
+    addAll(mkCloud());
+    const sun=document.createElement('div');sun.className='sun-obj';add(sun);
+    const w=document.createElement('div');w.className='water-layer';add(w);
+    const whale=document.createElement('div');whale.style.cssText='position:absolute;bottom:58px;left:42%;font-size:3rem;animation:d-idle 2.5s ease-in-out infinite';whale.textContent='🐋';add(whale);
+    add(mkTree('4%','44px','0s')); add(mkTree('90%','50px','0.6s'));
+    const h=mkDino('🧒','dino-walk-r',{left:'-80px'});add(h);
+    setTimeout(()=>{h.style.left='10%';h.className='dino-char dino-idle';},900);
+  }
+  else if(type==='crystal'){
+    const arc=document.createElement('div');arc.className='rainbow-arc';arc.style.opacity='0.85';add(arc);
+    const cr=document.createElement('div');cr.className='crystal-glow';cr.textContent='💎';add(cr);
+    add(mkTree('4%','48px','0s')); add(mkTree('88%','52px','0.5s'));
+    add(mkDino('🦕','dino-idle',{right:'52px',fontSize:'2.3rem'}));
+    const h=mkDino('🧒','dino-walk-r',{left:'-80px'});add(h);
+    setTimeout(()=>{h.style.left='25%';h.className='dino-char dino-idle';},900);
+  }
+  else if(type==='egg_scene'){
+    addAll(mkCloud());
+    const sun=document.createElement('div');sun.className='sun-obj';add(sun);
+    add(mkTree('7%','46px','0s')); add(mkTree('82%','54px','0.8s'));
+    const egg=document.createElement('div');egg.className='egg-obj';egg.style.cssText='left:44%;font-size:3rem';egg.textContent='🥚';add(egg);
+    add(mkDino('🦕','dino-idle',{right:'50px',fontSize:'3.5rem'}));
+    const h=mkDino('🧒','dino-walk-r',{left:'-80px'});add(h);
+    setTimeout(()=>{h.style.left='18%';h.className='dino-char dino-idle';},900);
+  }
+  else if(type==='celebration'){
+    const arc=document.createElement('div');arc.className='rainbow-arc';arc.style.cssText='width:280px;top:5px;opacity:1';add(arc);
+    addAll(mkCloud());
+    const DINOS=['🦕','🦖','🦎','🐊','🦕'];
+    DINOS.forEach((d,i)=>{
+      const nd=document.createElement('div');nd.className='dino-char dino-idle';
+      nd.style.cssText=`left:${8+i*18}%;font-size:${1.8+Math.random()*0.8}rem;animation-delay:${i*0.2}s`;
+      nd.textContent=d;add(nd);
+    });
+    const party=document.createElement('div');
+    party.style.cssText='position:absolute;top:8px;left:0;right:0;text-align:center;font-size:1.9rem;animation:bounce 1s ease-in-out infinite';
+    party.textContent='🎉🎊🎉';add(party);
+    // Confetti
+    const colors=['#f4a261','#74c69d','#90e0ef','#e76f51','#ffe566'];
+    for(let i=0;i<18;i++){
+      const c=document.createElement('div');c.className='confetti';
+      c.style.cssText=`left:${Math.random()*100}%;top:${-10-Math.random()*20}px;background:${colors[i%colors.length]};animation-duration:${1.5+Math.random()*2}s;animation-delay:${Math.random()*2}s;width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;transform:rotate(${Math.random()*360}deg)`;
+      add(c);
+    }
+  }
+}
+
+// ═══════════════════════════════════
+// TRANSITION
+// ═══════════════════════════════════
+const TEMOJI=['🦕','🦖','🌋','🥚','💎','🌿','⭐','🎉'];
+function doTransition(fn,emoji){
+  sfxTransition();
+  const el=document.getElementById('transition');
+  el.textContent=emoji||TEMOJI[Math.floor(Math.random()*TEMOJI.length)];
+  el.classList.add('on');
+  setTimeout(()=>{fn();el.classList.remove('on');},380);
+}
+
+// ═══════════════════════════════════
+// STORY DATA
+// ═══════════════════════════════════
+const S={
+  volcano:{name:"Das Feuerberg-Geheimnis",icon:"🌋",desc:"Ein Vulkan droht auszubrechen – rette das Dino-Tal!",start:"v1",nodes:{
+    v1:{sc:"jungle",ch:1,t:"Ein ohrenbetäubender Knall! Du landest auf weichem Moos mitten im Dino-Tal. Vor dir raucht ein riesiger Vulkan – er glüht immer roter! Ein junger Triceratops rennt auf dich zu: 'Hilf uns! Der Feuerberg erwacht! Die Herde ist in Gefahr!'",c:[{i:"🏃",t:"Sofort zur Herde rennen und warnen",n:"v2a"},{i:"🔭",t:"Den Vulkan vom Hügel beobachten",n:"v2b"},{i:"🦕",t:"Dem Triceratops folgen und mehr erfahren",n:"v2c"}]},
+    v2a:{sc:"volcano",ch:2,t:"Du rennst zur Herde! Brachiosaurier, Stegosaurier, ein alter T-Rex stehen verwirrt da. Heiße Aschewolken steigen auf. Du musst schnell einen Fluchtweg finden!",c:[{i:"🌊",t:"Durchs Flusstal zum Meer",n:"v3a"},{i:"🏔️",t:"Über den Bergpass",n:"v3b"},{i:"🌿",t:"Im Urwald Schutz suchen",n:"v3c"}]},
+    v2b:{sc:"cliff",ch:2,t:"Vom Hügel siehst du alles: Lava fließt zur alten Höhle – dort leuchtet es Blau! Ein weiser Pterodaktylus landet neben dir: 'Das ist der Kristall des Gleichgewichts! Bring ihn in Sicherheit!'",c:[{i:"🦅",t:"Pterodaktylus bitten, dich zu fliegen",n:"v3d"},{i:"🏃",t:"Selbst zur Höhle rennen",n:"v3e"},{i:"📣",t:"Zuerst die Herde warnen",n:"v3f"}]},
+    v2c:{sc:"jungle",ch:2,t:"Driko erzählt: 'Jedes Mal wenn der Vulkan erwacht, muss jemand den alten Gesang singen! Meine Großmutter kannte ihn, aber sie ist weg!' Ein Erdbeben erschüttert den Boden!",c:[{i:"👵",t:"Drikos Großmutter suchen",n:"v3g"},{i:"📜",t:"Alten Gesang in Felszeichnungen suchen",n:"v3h"},{i:"🎵",t:"Einfach laut singen und hoffen!",n:"v3i"}]},
+    v3a:{sc:"water",ch:3,t:"Durchs Flusstal! Der Fluss schwillt an. Ein Brachiosaurus zeigt auf eine Felsenbrücke. Lava kommt näher – schnell!",c:[{i:"🌉",t:"Alle über die Felsenbrücke!",n:"v4a"},{i:"🏊",t:"Durch den Fluss schwimmen",n:"v4b"},{i:"🦕",t:"Brachiosaurus als lebende Brücke nutzen",n:"v4c"}]},
+    v3b:{sc:"volcano",ch:3,t:"Der Bergpass! Halbwegs blockiert ein Felsblock den Weg. Ein Stegosaurus kommt vor – seine Platten leuchten golden. Er hat eine Idee!",c:[{i:"💪",t:"Alle gemeinsam schieben",n:"v4d"},{i:"🔍",t:"Anderen Weg suchen",n:"v4e"},{i:"⚡",t:"Stegis Idee ausführen lassen",n:"v4f"}]},
+    v3c:{sc:"forest",ch:3,t:"Im Urwald leuchten kleine Augen – Compsognathus-Dinos! 'Wir kennen einen Tunnel unter dem Feuerberg durch!'",c:[{i:"🕳️",t:"Dem Tunnel vertrauen",n:"v4g"},{i:"❓",t:"Erst nach Beweisen fragen",n:"v4h"},{i:"🌳",t:"Auf hohe Bäume klettern",n:"v4i"}]},
+    v3d:{sc:"cliff",ch:3,t:"Der Pterodaktylus fliegt dich durch Aschewolken! In der Höhle glänzt ein blauer Kristall. Als du ihn berührst: Vision! Er muss in den Vulkangipfel!",c:[{i:"🌋",t:"Sofort zum Vulkangipfel!",n:"v4j"},{i:"🤔",t:"Überlegen ob das sicher ist",n:"v4k"},{i:"👥",t:"Hilfe von der Herde holen",n:"v4l"}]},
+    v3e:{sc:"volcano",ch:3,t:"Du rennst! Mit einem Sprung erreichst du die Höhle und greifst den Kristall. Er fühlt sich kalt an wie Eis – mitten im Feuer!",c:[{i:"🌋",t:"Den Kristall in den Vulkan legen",n:"v4j"},{i:"💧",t:"Den Kristall in den Fluss legen",n:"v4m"},{i:"🦅",t:"Pterodaktylus rufen",n:"v4j"}]},
+    v3f:{sc:"volcano",ch:3,t:"Herde gewarnt! Nun zur Höhle. Der Kristall ist noch da – aber die Höhle füllt sich mit Rauch. Wenige Sekunden!",c:[{i:"💨",t:"Schnell rein und schnappen!",n:"v4j"},{i:"🧣",t:"Hemd als Atemschutz",n:"v4j"},{i:"🪨",t:"Erst testen ob es sicher ist",n:"v4n"}]},
+    v3g:{sc:"jungle",ch:3,t:"Mama-Trice! Sie singt leise. 'Ich kenne den Gesang – aber ich brauche drei besondere Steine als Rhythmus!'",c:[{i:"🪨",t:"Drei Steine am Fluss suchen",n:"v4o"},{i:"🎵",t:"Ohne Steine sofort singen",n:"v4p"},{i:"🏃",t:"Sie zum Vulkan bringen",n:"v4p"}]},
+    v3h:{sc:"jungle",ch:3,t:"Uralte Felszeichnungen! Ein Lied in Bildern. Ein freundlicher Iguanodon hilft dir beim Lesen der Melodie.",c:[{i:"🎵",t:"Die Melodie laut singen",n:"v4p"},{i:"🥁",t:"Den Rhythmus trommeln",n:"v4p"},{i:"📸",t:"Zeichnungen genau studieren",n:"v4o"}]},
+    v3i:{sc:"jungle",ch:3,t:"Du singst! Driko macht mit. Dann summt die ganze Herde! Tausende Dino-Stimmen. Der Boden zittert anders... als würde der Vulkan zuhören?",c:[{i:"🎤",t:"Noch lauter singen!",n:"v5w"},{i:"🦕",t:"Alle in einen Kreis",n:"v5w"},{i:"🌋",t:"Singend zum Vulkan marschieren",n:"v5w"}]},
+    v4a:{sc:"water",ch:4,t:"Die Brücke hält! Der T-Rex zögert – du ermutigst ihn. Mit drei Schritten drüben! Gerade noch – die Lava verschlingt die Brücke.",c:[{i:"🎉",t:"Jubeln!",n:"v5w"},{i:"🌅",t:"Letzten Blick auf das Tal",n:"v5w"},{i:"🤝",t:"Allen danken",n:"v5w"}]},
+    v4b:{sc:"water",ch:4,t:"Schwimmen! Du hilfst dem alten Ankylosaurus. Gemeinsam kämpft ihr gegen die Strömung – und schafft es!",c:[{i:"🎉",t:"Gerettet!",n:"v5w"},{i:"🏕️",t:"Lager aufbauen",n:"v5w"},{i:"🔭",t:"Schaut ob Vulkan sich beruhigt",n:"v5w"}]},
+    v4c:{sc:"water",ch:4,t:"Der Brachiosaurus stellt sich ins Wasser! Sein langer Hals: eine perfekte Brücke. Er lacht – ein tiefes Grummeln das Bäume schüttelt!",c:[{i:"🎉",t:"Alle safe!",n:"v5w"},{i:"🤝",t:"Danken!",n:"v5w"},{i:"🌅",t:"Sonnenuntergang genießen",n:"v5w"}]},
+    v4d:{sc:"volcano",ch:4,t:"Alle schieben! KRACH – der Felsen rollt den Hang hinunter. Der Weg ist frei! Die Herde jubelt.",c:[{i:"🎉",t:"Feiern!",n:"v5w"},{i:"🌄",t:"Neues Tal erkunden",n:"v5w"},{i:"🤝",t:"Alle umarmen",n:"v5w"}]},
+    v4e:{sc:"volcano",ch:4,t:"Schmaler Pfad! Vorsichtig klettert die Herde hinüber. Kleine Dinos helfen großen. Teamwork!",c:[{i:"🎉",t:"Alle oben!",n:"v5w"},{i:"🏔️",t:"Ausblick bewundern",n:"v5w"},{i:"🌿",t:"Neues Tal erkunden",n:"v5w"}]},
+    v4f:{sc:"volcano",ch:4,t:"Stegi lädt seine Platten auf – golden leuchtend! Er rammt den Felsen. BUMM BUMM! Splitter fliegen, der Weg ist frei!",c:[{i:"🎉",t:"Jubeln!",n:"v5w"},{i:"🌟",t:"Stegi zum Helden ernennen",n:"v5w"},{i:"🏔️",t:"Schnell weiter",n:"v5w"}]},
+    v4g:{sc:"forest",ch:4,t:"Tunnel! Biolumineszente Pilze leuchten blau-grün. Am Ende: frische Luft und Sicherheit!",c:[{i:"🎉",t:"Staunen!",n:"v5w"},{i:"🍄",t:"Pilze bewundern",n:"v5w"},{i:"🤝",t:"Den kleinen Dinos danken",n:"v5w"}]},
+    v4h:{sc:"forest",ch:4,t:"Der Tunnel ist eng aber sicher. Nach zwanzig Minuten seid ihr auf der anderen Seite!",c:[{i:"🎉",t:"Gerettet!",n:"v5w"},{i:"🦕",t:"Zurückblicken",n:"v5w"},{i:"🌿",t:"Neues Zuhause erkunden",n:"v5w"}]},
+    v4i:{sc:"forest",ch:4,t:"Kleine Dinos klettern auf die Köpfe der Großen – Pyramide! Die Asche zieht vorbei. Alle unversehrt!",c:[{i:"🎉",t:"Alle safe!",n:"v5w"},{i:"🌿",t:"Teamwork feiern",n:"v5w"},{i:"🌋",t:"Vulkan beobachten",n:"v5w"}]},
+    v4j:{sc:"volcano",ch:4,t:"Hoch über dem Vulkan! Du legst den Kristall in den Krater. Stille... Blaues Leuchten. Der Vulkan hustet – und schweigt.",c:[{i:"🎉",t:"Es hat funktioniert!",n:"v5w"},{i:"🦅",t:"Über das Tal fliegen",n:"v5w"},{i:"👀",t:"Abwarten",n:"v5w"}]},
+    v4k:{sc:"volcano",ch:4,t:"Du legst den Kristall sanft in die Mitte. Blaues Licht explodiert! Perfekt ausgeführt.",c:[{i:"🎉",t:"Perfekt!",n:"v5w"},{i:"🦅",t:"Schnell wegfliegen!",n:"v5w"},{i:"💎",t:"Kristall ein letztes Mal ansehen",n:"v5w"}]},
+    v4l:{sc:"volcano",ch:4,t:"Alle Dinos berühren gemeinsam den Kristall – er leuchtet zehnmal heller! Vereinte Kräfte bringen ihn in den Krater.",c:[{i:"🎉",t:"Gemeinsam geschafft!",n:"v5w"},{i:"🌟",t:"Alle Helden feiern",n:"v5w"},{i:"🌋",t:"Vulkan bestaunen",n:"v5w"}]},
+    v4m:{sc:"water",ch:4,t:"Der Kristall leuchtet blau im Fluss! Das Wasser kühlt die Lava. Der Vulkan prustet... und hört auf zu rauchen!",c:[{i:"🎉",t:"Unglaublich!",n:"v5w"},{i:"🌊",t:"Am Fluss bleiben",n:"v5w"},{i:"🦕",t:"Gute Nachricht bringen",n:"v5w"}]},
+    v4n:{sc:"volcano",ch:4,t:"Teststein landet sicher. Du rennst rein, schnappst den Kristall – raus! Gerade als die Höhle zusammenbricht. Haarscharf!",c:[{i:"🌋",t:"Zum Vulkan!",n:"v5w"},{i:"🦅",t:"Pterodaktylus rufen",n:"v5w"},{i:"🎉",t:"Erstmal durchatmen",n:"v5w"}]},
+    v4o:{sc:"jungle",ch:4,t:"Drei Steine! Mama-Trice singt – BONG BONG BONG. Ein Chor der Urzeit beginnt!",c:[{i:"🎵",t:"Lauter mitsingen",n:"v5w"},{i:"🦕",t:"Alle einladen",n:"v5w"},{i:"🌋",t:"Zum Vulkan marschieren",n:"v5w"}]},
+    v4p:{sc:"jungle",ch:4,t:"Der Gesang breitet sich aus. Alle Dinos stimmen ein. Der Vulkan antwortet im Rhythmus... dann tiefe Stille. Frieden.",c:[{i:"🎉",t:"Gewirkt!",n:"v5w"},{i:"🌋",t:"Vulkan bestaunen",n:"v5w"},{i:"🤝",t:"Alle umarmen",n:"v5w"}]},
+    v5w:{sc:"celebration",end:true,eEmoji:"🏆",eTitle:"Das Tal ist gerettet!",t:"Der Vulkan beruhigt sich. Blaue Blumen wachsen aus der erkalteten Lava. Driko springt auf deine Schulter! Der alte Pterodaktylus nickt: 'Ich wusste, du schaffst es.' Ein goldenes Licht umhüllt dich – dieses Abenteuer vergisst du nie!"}
+  }},
+
+  egg:{name:"Das gestohlene Ei",icon:"🥚",desc:"Ein Baby-Dino-Ei wurde gestohlen – du musst es retten!",start:"e1",nodes:{
+    e1:{sc:"egg_scene",ch:1,t:"Weinendes Grummeln! Mama Bella weint bittere Tränen. Ihr kostbarstes Ei ist weg! Fußspuren führen in drei Richtungen.",c:[{i:"👣",t:"Große Spuren zur Klippe verfolgen",n:"e2a"},{i:"🔍",t:"Kleine Spuren in den Dschungel",n:"e2b"},{i:"🌊",t:"Spuren ins Wasser untersuchen",n:"e2c"}]},
+    e2a:{sc:"cliff",ch:2,t:"Ein riesiger Quetzalcoatlus sitzt oben mit dem Ei! Er sieht traurig aus: 'Ich wollte nur ein Freund für mein eigenes Ei sein!'",c:[{i:"🤝",t:"Erklären, dass das Ei seiner Mama gehört",n:"e3a"},{i:"🧗",t:"Heimlich auf die Klippe klettern",n:"e3b"},{i:"💡",t:"Anbieten, bei seinem Ei zu helfen",n:"e3c"}]},
+    e2b:{sc:"forest",ch:2,t:"Freche Oviraptoren spielen mit dem Ei! 'Es ist so schön bunt!' Das Ei rollt – gleich fällt es in die Schlucht!",c:[{i:"⚡",t:"Schnell das Ei schnappen!",n:"e3d"},{i:"🎮",t:"Ein besseres Spiel vorschlagen",n:"e3e"},{i:"😠",t:"Laut schimpfen",n:"e3f"}]},
+    e2c:{sc:"water",ch:2,t:"Ein freundlicher Mosasaurus hat das Ei gerettet! 'Es rollte ins Wasser!' Aber er kann nicht ans Ufer.",c:[{i:"🏊",t:"Ins Wasser schwimmen",n:"e3g"},{i:"🌿",t:"Eine Liane werfen",n:"e3h"},{i:"🦕",t:"Bella holen",n:"e3i"}]},
+    e3a:{sc:"cliff",ch:3,t:"Quezi hört zu. Tränen kommen. 'Ich wusste nicht, dass jemand weint!' Er gibt dir das Ei vorsichtig zurück.",c:[{i:"🤗",t:"Trösten und versprechen wiederzukommen",n:"e4a"},{i:"💡",t:"Ihn zu Bellas Familie einladen",n:"e4b"},{i:"🏃",t:"Schnell zu Bella!",n:"e4c"}]},
+    e3b:{sc:"cliff",ch:3,t:"Du kletterst – Quezi entdeckt dich! 'Du hättest fragen können!' Er gibt es dir trotzdem.",c:[{i:"😅",t:"Entschuldigen",n:"e4a"},{i:"🤝",t:"Freundschaft schließen",n:"e4b"},{i:"🏃",t:"Zu Bella!",n:"e4c"}]},
+    e3c:{sc:"cliff",ch:3,t:"Du hilfst Quezi mit seinem Ei! Er legt Blätter drum. Als Dank gibt er dir Bellas Ei zurück.",c:[{i:"🌡️",t:"Noch mehr helfen",n:"e4b"},{i:"🏃",t:"Jetzt zu Bella!",n:"e4c"},{i:"🤝",t:"Versprechen wiederzukommen",n:"e4a"}]},
+    e3d:{sc:"forest",ch:3,t:"Du springst und schnappst das Ei! Die Oviraptoren staunen: 'Wow, so einen Sprung!'",c:[{i:"🏃",t:"Zu Bella!",n:"e4c"},{i:"🎮",t:"Andere Spiele zeigen",n:"e4d"},{i:"😤",t:"Lektion erteilen",n:"e4c"}]},
+    e3e:{sc:"forest",ch:3,t:"Du erfindest Kokosnuss-Kicken! Alle legen das Ei hin – du nimmst es vorsichtig.",c:[{i:"🏃",t:"Zu Bella!",n:"e4c"},{i:"😊",t:"Kurz zuschauen",n:"e4d"},{i:"🤝",t:"Erklären warum kein Ei klauen",n:"e4d"}]},
+    e3f:{sc:"forest",ch:3,t:"Du schreist! Einer lässt das Ei los – es fliegt in die Luft! Du springst – CATCH! Haarscharf.",c:[{i:"😅",t:"Durchatmen und zu Bella",n:"e4c"},{i:"😤",t:"Nochmal Bescheid geben",n:"e4c"},{i:"🤝",t:"Ihnen vergeben",n:"e4d"}]},
+    e3g:{sc:"water",ch:3,t:"Mosasaurus übergibt das Ei. 'Ich hab es gewärmt!' Es summt leise – fast bereit zu schlüpfen!",c:[{i:"⚡",t:"Schnell ans Ufer!",n:"e4e"},{i:"🤝",t:"Mosasaurus danken",n:"e4e"},{i:"📣",t:"Bella rufen!",n:"e4e"}]},
+    e3h:{sc:"water",ch:3,t:"Die Liane klappt! Das Ei macht einen ersten Riss – es will schlüpfen!",c:[{i:"📣",t:"Bella sofort rufen!",n:"e4e"},{i:"👁️",t:"Beobachten",n:"e4e"},{i:"🤲",t:"Vorsichtig halten",n:"e4e"}]},
+    e3i:{sc:"egg_scene",ch:3,t:"Bella kommt! Sie weint vor Freude. Mit ihrem langen Hals holt sie das Ei selbst.",c:[{i:"🥚",t:"Wiedersehen bestaunen",n:"e4e"},{i:"🤝",t:"Mosasaurus loben",n:"e4e"},{i:"🎉",t:"Mitfeiern!",n:"e4e"}]},
+    e4a:{sc:"egg_scene",ch:4,t:"Das Ei beginnt in Bellas Armen zu leuchten! Erste Risse erscheinen...",c:[{i:"👀",t:"Gespannt zuschauen",n:"e5w"},{i:"🎉",t:"Jubeln!",n:"e5w"},{i:"🤲",t:"Halten",n:"e5w"}]},
+    e4b:{sc:"egg_scene",ch:4,t:"Der neue Freund kommt mit! Bella lächelt: 'Je mehr Freunde, desto besser!' Das Ei schlüpft!",c:[{i:"👶",t:"Schlüpfen beobachten!",n:"e5w"},{i:"🎉",t:"Feiern!",n:"e5w"},{i:"🤝",t:"Alle vorstellen",n:"e5w"}]},
+    e4c:{sc:"egg_scene",ch:4,t:"Bella galoppiert auf dich zu! Das Ei antwortet mit warmem Glühen. Tränen der Freude.",c:[{i:"👀",t:"Schlüpfen abwarten",n:"e5w"},{i:"🎉",t:"Mit Bella feiern",n:"e5w"},{i:"🌅",t:"Moment genießen",n:"e5w"}]},
+    e4d:{sc:"forest",ch:4,t:"Die Oviraptoren tanzen als Entschuldigung für Bella! Sie lacht zum ersten Mal.",c:[{i:"👶",t:"Schlüpfen feiern",n:"e5w"},{i:"🎉",t:"Alle tanzen",n:"e5w"},{i:"🤝",t:"Neue Freundschaft",n:"e5w"}]},
+    e4e:{sc:"egg_scene",ch:4,t:"Das Ei schlüpft! Ein winziger Brachiosaurus schaut dich an: 'MEEEP!' Du bist das erste Gesicht das er sieht!",c:[{i:"👶",t:"Dem Baby Hallo sagen",n:"e5w"},{i:"🎉",t:"Jubeln!",n:"e5w"},{i:"🤲",t:"Das Baby streicheln",n:"e5w"}]},
+    e5w:{sc:"celebration",end:true,eEmoji:"🥚💕",eTitle:"Das Baby ist auf der Welt!",t:"Das Baby macht seine ersten wackeligen Schritte! 'MEEEP MEEEP' – Dino-Sprache für 'Danke, Held!' Bella wischt Freudentränen. Für immer wirst du der Held sein, der das erste Baby der Herde gerettet hat!"}
+  }},
+
+  crystal:{name:"Der Regenbogen-Kristall",icon:"💎",desc:"Finde den legendären Kristall der alle Dinos vereint!",start:"c1",nodes:{
+    c1:{sc:"jungle",ch:1,t:"Opa Anky erzählt die Legende: Tief im Dschungel liegt der Regenbogen-Kristall. Wer ihn findet, bringt Frieden! Drei Hinweise führen dorthin.",c:[{i:"⭐",t:"Den Sternen folgen",n:"c2a"},{i:"🌊",t:"Dem Gesang des Flusses lauschen",n:"c2b"},{i:"🦋",t:"Bunten Schmetterlingen folgen",n:"c2c"}]},
+    c2a:{sc:"cliff",ch:2,t:"Ein Iguanodon wacht am Bergaufstieg: 'Rätsel: Ich habe kein Leben, aber ich kann sterben. Was bin ich?'",c:[{i:"🕯️",t:"Eine Flamme!",n:"c3a"},{i:"🌹",t:"Eine Blume!",n:"c3b"},{i:"⏳",t:"Die Zeit!",n:"c3c"}]},
+    c2b:{sc:"water",ch:2,t:"Der Fluss singt und führt zu einem Wasserfall. Dahinter eine Höhle! Drei Wächter: grün, blau, rot. 'Nur einer sagt die Wahrheit!'",c:[{i:"🟢",t:"Dem grünen vertrauen",n:"c3d"},{i:"🔵",t:"Dem blauen vertrauen",n:"c3e"},{i:"🔴",t:"Dem roten vertrauen",n:"c3f"}]},
+    c2c:{sc:"forest",ch:2,t:"Ein Geheimgarten! In der Mitte sitzt ein Baby-Parasaurolophus: 'Ich bin verloren seit drei Tagen!'",c:[{i:"🏡",t:"Sofort helfen, Familie suchen",n:"c3g"},{i:"🗺️",t:"Erst Kristall, dann helfen",n:"c3h"},{i:"🤝",t:"Baby mitnehmen",n:"c3i"}]},
+    c3a:{sc:"cliff",ch:3,t:"Richtig! Oben findest du eine Karte zum alten Tempel!",c:[{i:"🏃",t:"Zum Tempel!",n:"c4a"},{i:"🗺️",t:"Karte studieren",n:"c4a"},{i:"🔭",t:"Gegend sondieren",n:"c4a"}]},
+    c3b:{sc:"cliff",ch:3,t:"Fast! Du überlegst... 'Eine Flamme!' 'Genau!' Er lässt dich durch.",c:[{i:"🏃",t:"Zum Tempel!",n:"c4a"},{i:"😅",t:"Erleichtert weitergehen",n:"c4a"},{i:"🤔",t:"Mehr üben",n:"c4a"}]},
+    c3c:{sc:"cliff",ch:3,t:"'Zeit stirbt nicht.' Du denkst nach: 'Eine Flamme!' 'Ja!'",c:[{i:"🏃",t:"Zum Tempel!",n:"c4a"},{i:"😊",t:"Danken",n:"c4a"},{i:"🗺️",t:"Karte suchen",n:"c4a"}]},
+    c3d:{sc:"water",ch:3,t:"Der grüne Dino zeigt den Weg durch den Wasserfall. Im Inneren leuchtet der Kristall-Pfad!",c:[{i:"💎",t:"Dem Leuchten folgen",n:"c4b"},{i:"🔍",t:"Höhle erkunden",n:"c4b"},{i:"🤝",t:"Den Dino mitnehmen",n:"c4b"}]},
+    c3e:{sc:"water",ch:3,t:"Falsche Richtung! Sackgasse. Der grüne Dino zeigt dir den echten Weg.",c:[{i:"💎",t:"Richtigem Weg folgen",n:"c4b"},{i:"😤",t:"Den blauen konfrontieren",n:"c4b"},{i:"🏃",t:"Schnell weiter",n:"c4b"}]},
+    c3f:{sc:"water",ch:3,t:"Kreise! Nach einer Stunde: Startpunkt. Der grüne Dino zeigt den echten Weg.",c:[{i:"💎",t:"Jetzt richtig folgen",n:"c4b"},{i:"🤔",t:"Warum log er?",n:"c4b"},{i:"🏃",t:"Zum Kristall!",n:"c4b"}]},
+    c3g:{sc:"forest",ch:3,t:"Familie gefunden! Als Dank zeigt der Vater den geheimen Pfad zum Kristall!",c:[{i:"💎",t:"Dem Pfad folgen!",n:"c4c"},{i:"🤝",t:"Familie mitnehmen",n:"c4c"},{i:"🎉",t:"Kurz mitfeiern",n:"c4c"}]},
+    c3h:{sc:"forest",ch:3,t:"Du kannst dich nicht konzentrieren... kehrst um und hilfst. Die Familie zeigt dankbar den Weg.",c:[{i:"💎",t:"Zum Kristall!",n:"c4c"},{i:"😊",t:"Froh sein",n:"c4c"},{i:"🏃",t:"Keine Zeit verlieren!",n:"c4c"}]},
+    c3i:{sc:"forest",ch:3,t:"Baby Pipi riecht plötzlich: 'Da! Meine Familie!' Als Dank zeigen sie den Weg UND begleiten euch.",c:[{i:"💎",t:"Gemeinsam zum Kristall!",n:"c4c"},{i:"🎉",t:"Feiern!",n:"c4c"},{i:"🏃",t:"Aufbruch!",n:"c4c"}]},
+    c4a:{sc:"crystal",ch:4,t:"Der Tempel! Der Kristall liegt in der Mitte. Eine Stimme: 'Letzte Frage: Was ist stärker als ein T-Rex?'",c:[{i:"💪",t:"Freundschaft!",n:"c5w"},{i:"🌊",t:"Das Meer!",n:"c5w"},{i:"❤️",t:"Liebe!",n:"c5w"}]},
+    c4b:{sc:"crystal",ch:4,t:"Der Kristall schwebt, umgeben von Regenbögen ohne Sonne! Er zeigt Bilder: Alle Dinos in Frieden.",c:[{i:"🤲",t:"Den Kristall nehmen",n:"c5w"},{i:"👁️",t:"Bilder ansehen",n:"c5w"},{i:"🌈",t:"Im Regenbogen tanzen",n:"c5w"}]},
+    c4c:{sc:"crystal",ch:4,t:"Eine Lichtung schön wie ein Traum. Blumen in allen Regenbogenfarben. Der Kristall liegt in einem Blütennest!",c:[{i:"💎",t:"Ehrfürchtig nehmen",n:"c5w"},{i:"🌸",t:"Innehalten",n:"c5w"},{i:"📸",t:"Moment einprägen",n:"c5w"}]},
+    c5w:{sc:"celebration",end:true,eEmoji:"🌈",eTitle:"Der Frieden der Urzeit!",t:"Ein Regenbogen schießt in den Himmel! Von allen Seiten kommen Dinos – groß und klein. Sie lachen gemeinsam. Opa Anky weint: 'Nach einer Million Jahren... endlich Frieden!' Du hast die Legende wahr gemacht!"}
+  }}
+};
+
+// ═══════════════════════════════════
+// GAME ENGINE
+// ═══════════════════════════════════
+let story=null, visited=[];
+
+function renderStart(){
+  clearStoryBg();
+  const canvas=document.getElementById('scene-canvas');
+  const objs=document.getElementById('scene-objs');
+  buildScene('jungle',objs,canvas);
+  document.getElementById('game').innerHTML=`
+    <div class="story-card start-card">
+      <span class="big-dino">🦕</span>
+      <h2 class="start-title">Wähle dein Abenteuer!</h2>
+      <p class="start-desc">Drei Geschichten, viele Wege – jede Runde anders!</p>
+      <div class="spicker">
+        ${Object.entries(S).map(([k,s])=>`
+          <button class="spbtn" onclick="startStory('${k}')">
+            <span class="sp-ico">${s.icon}</span>
+            <span><div class="sp-name">${s.name}</div><div class="sp-desc">${s.desc}</div></span>
+          </button>`).join('')}
+      </div>
+    </div>`;
+}
+
+function startStory(key){
+  story=S[key]; visited=[];
+  setStoryBg(key);
+  startStoryMusic(key);
+  sfxSelect();
+  goTo(story.start);
+}
+
+function goTo(id){
+  sfxClick();
+  const node=story.nodes[id];
+  visited.push(id);
+  const em=node.eEmoji||'🦕';
+  doTransition(()=>{
+    const canvas=document.getElementById('scene-canvas');
+    const objs=document.getElementById('scene-objs');
+    buildScene(node.sc||'jungle',objs,canvas);
+  if(node.sc==='volcano'||node.sc==='egg_scene') setTimeout(()=>{ if(node.sc==='volcano') sfxLava(); else sfxCrack(); },800);
+    node.end?renderEnd(node):renderScene(node);
+  },em);
+}
+
+function shuffle(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+
+function renderScene(node){
+  const pct=Math.round(((node.ch-1)/5)*100);
+  const dots=Array.from({length:6},(_,i)=>`<div class="pd${i<node.ch-1?' done':i===node.ch-1?' now':''}"></div>`).join('');
+  const choices=shuffle(node.c);
+  document.getElementById('game').innerHTML=`
+    <div class="story-card">
+      <div class="pdots">${dots}</div>
+      <span class="cbadge">⚡ Kapitel ${node.ch}</span>
+      <p class="stext">${node.t}</p>
+      <div class="pwrap"><div class="pfill" style="width:${pct}%"></div></div>
+      <p class="plbl">Abenteuer: ${pct}%</p>
+    </div>
+    <p class="ctitle">🌿 Was tust du?</p>
+    <div class="choices">
+      ${choices.map(c=>`<button class="cbtn" onclick="goTo('${c.n}')"><span class="cico">${c.i}</span><span>${c.t}</span></button>`).join('')}
+    </div>`;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+function renderEnd(node){
+  fadeOutBgMusic(1);
+  setTimeout(()=>{ playWinMusic(); sfxWin(); }, 1100);
+  const key=Object.keys(S).find(k=>S[k]===story);
+  document.getElementById('game').innerHTML=`
+    <div class="story-card">
+      <span class="end-emoji">${node.eEmoji}</span>
+      <h2 class="end-title">${node.eTitle}</h2>
+      <p class="stext">${node.t}</p>
+      <div style="text-align:center"><div class="end-score">🏆 ${visited.length} Schritte bis zum Ziel!</div></div>
+    </div>
+    <div class="btn-row">
+      <button class="rbtn" onclick="startStory('${key}')">🔄 Nochmal!</button>
+      <button class="rbtn g" onclick="renderStart()">🦕 Andere Geschichte</button>
+    </div>`;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+renderStart();
+</script>
+
+<div style="position:fixed;bottom:10px;right:12px;font-family:'Nunito',sans-serif;font-size:0.72rem;font-weight:700;color:rgba(116,198,157,0.55);text-align:right;z-index:100;pointer-events:none;line-height:1.5;">
+  Version v01.01<br>
+  &copy; 2026 Claude &amp; R.-M. Woi<br>
+  Alle Rechte vorbehalten
+</div>
+
+</body>
+</html>
